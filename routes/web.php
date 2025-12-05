@@ -25,3 +25,6 @@ Route::get('/', function () {
 Route::post('/backup/metadata', [BackupMetadataController::class, 'storeMetadata'])
     ->name('backup.metadata.store')
     ->middleware('auth');
+
+Route::delete('/backup/{id}', [BackupMetadataController::class, 'delete'])
+    ->name('backup.delete')->middleware('auth');

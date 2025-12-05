@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Backup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class BackupMetadataController extends Controller
@@ -40,7 +41,7 @@ class BackupMetadataController extends Controller
      */
     public function callback(Request $request)
     {
-         Log::info('CALLBACK RAW', $request->all());
+        Log::info('CALLBACK RAW', $request->all());
 
         $backup = Backup::find($request->backup_id);
 
@@ -68,5 +69,44 @@ class BackupMetadataController extends Controller
     public function listJson()
     {
         return Backup::orderBy('id', 'desc')->get();
+    }
+
+    /**
+     * STEP 4:
+     * DELETE BACKUP (hapus file di MinIO + hapus di database)
+     */
+    public function delete($id)
+    {
+        $backup = Backup::find($id);
+
+        if (! $backup) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+
+        // Jika tidak ada path MinIO, langsung hapus metadata
+        if (! $backup->path) {
+            $backup->delete();
+            return response()->json(['deleted' => true, 'minio' => false]);
+        }
+
+        // --- 1. Hapus file di GO WORKER ---
+        $goUrl = "http://127.0.0.1:9090/delete?path={$backup->path}";
+
+        $response = Http::timeout(10)->delete($goUrl);
+
+        if (! $response->ok()) {
+            return response()->json([
+                'error' => 'Failed to delete file in worker',
+                'worker_response' => $response->json()
+            ], 500);
+        }
+
+        // --- 2. Hapus metadata di database ---
+        $backup->delete();
+
+        return response()->json([
+            'deleted' => true,
+            'minio' => true
+        ]);
     }
 }

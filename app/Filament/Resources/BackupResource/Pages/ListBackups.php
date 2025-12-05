@@ -13,7 +13,12 @@ class ListBackups extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            //Actions\CreateAction::make(),
+            Actions\Action::make('upload')
+            ->label('Upload Backup')
+            ->icon('heroicon-o-arrow-up-tray')
+            ->color('primary')
+            ->url('/admin/upload-backup'), // ke Filament Page custom
         ];
     }
 }

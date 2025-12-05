@@ -10,6 +10,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Http;   // ← WAJIB TAMBAHKAN INI
+use Illuminate\Support\Facades\Log;
 
 class BackupResource extends Resource
 {
@@ -26,12 +28,10 @@ class BackupResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->poll('5s') // Auto refresh setiap 5 detik
+            ->poll('5s')
             ->columns([
 
-                TextColumn::make('name')
-                    ->sortable()
-                    ->searchable(),
+                TextColumn::make('name')->sortable()->searchable(),
 
                 TextColumn::make('original_filename')
                     ->label('Original Filename')
@@ -41,7 +41,7 @@ class BackupResource extends Resource
                 TextColumn::make('original_size')
                     ->label('Original Size')
                     ->formatStateUsing(fn ($state) =>
-                        number_format($state / 1024 / 1024, 2).' MB'
+                        number_format($state / 1024 / 1024, 2) . ' MB'
                     ),
 
                 BadgeColumn::make('status')
@@ -58,7 +58,9 @@ class BackupResource extends Resource
             ])
             ->actions([
                 
+                // ==============================
                 // DOWNLOAD DECRYPTED FILE
+                // ==============================
                 Tables\Actions\Action::make('download')
                     ->label('Download')
                     ->icon('heroicon-o-arrow-down-tray')
@@ -68,7 +70,44 @@ class BackupResource extends Resource
                     ->openUrlInNewTab()
                     ->visible(fn ($record) => $record->status === 'completed'),
 
-                Tables\Actions\DeleteAction::make(),
+                // ==============================
+                // DELETE BACKUP (Laravel + Go Worker)
+                // ==============================
+                Tables\Actions\Action::make('delete_backup')
+                    ->label('Delete')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->action(function ($record) {
+
+                        if (! $record->path) {
+                            throw new \Exception('Backup path empty.');
+                        }
+
+                        $cleanPath = trim($record->path);   // ← FIX TERBESAR
+                        $encodedPath = str_replace(' ', '%20', $record->path);
+                        $url = "http://127.0.0.1:9090/delete?path={$encodedPath}";
+
+                        Log::info("Deleting MinIO file", [
+                            'id' => $record->id,
+                            'raw_path' => $record->path,
+                            'encoded_path' => $encodedPath,
+                            'url' => $url,
+                        ]);
+
+                        $response = Http::get($url);
+
+                        Log::info("Worker delete response", [
+                            'status' => $response->status(),
+                            'body' => $response->body(),
+                        ]);
+
+                        if (! $response->ok()) {
+                            throw new \Exception("Failed to delete backup file in worker (status {$response->status()})");
+                        }
+
+                        $record->delete();
+                    })
             ]);
     }
 

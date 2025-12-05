@@ -98,7 +98,10 @@
                     document.getElementById("progress-status").textContent =
                         "Upload Complete ✔";
 
-                    setTimeout(() => location.reload(), 1000);
+                    // 🔥 Redirect ke halaman table backups
+                    setTimeout(() => {
+                        window.location.href = "/admin/backups";
+                    }, 800);
                 }
             })
 
