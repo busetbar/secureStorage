@@ -18,5 +18,7 @@ class Backup extends Model
         'final_size',
         'status',
         'user_id',
+        'duration_encrypt_ms',
+        'duration_decrypt_ms', // ← WAJIB ADA
     ];
 }

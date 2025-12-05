@@ -29,6 +29,7 @@ class BackupCallbackController extends Controller
             'stored_filename' => $data['minio_path'],
             'final_size'    => $data['final_size'],
             'status'        => 'completed',
+            'duration_encrypt_ms'  => $data['duration_ms'],
         ]);
 
         return response()->json(['ok' => true]);

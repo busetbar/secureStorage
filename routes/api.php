@@ -22,6 +22,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::post('/backup/callback', [BackupCallbackController::class, 'handle']);
 Route::get('/backup/list/json', [BackupMetadataController::class, 'listJson']);
+Route::get('/backup/decrypt-time/{id}', [BackupMetadataController::class, 'checkDecryptTime']);
 
 // Route::post('/backup/metadata', [BackupMetadataController::class, 'storeMetadata'])
 //     ->name('backup.metadata.store');

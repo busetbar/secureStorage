@@ -34,7 +34,7 @@
 
 <script>
 (() => {
-    const goUploadUrl = "http://127.0.0.1:9090/upload";
+    const goUploadUrl = "http://192.168.200.211:9090/upload";
     const metadataUrl = "{{ route('backup.metadata.store') }}";
     const csrf = "{{ csrf_token() }}";
 

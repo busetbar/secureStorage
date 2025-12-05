@@ -65,7 +65,7 @@ class BackupResource extends Resource
                     ->label('Download')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->url(fn ($record) =>
-                        "http://127.0.0.1:9090/download/decrypted?path={$record->path}&filename={$record->original_filename}"
+                        "http://192.168.200.211:9090/download/decrypted?path={$record->path}&filename={$record->original_filename}"
                     )
                     ->openUrlInNewTab()
                     ->visible(fn ($record) => $record->status === 'completed'),
@@ -86,7 +86,7 @@ class BackupResource extends Resource
 
                         $cleanPath = trim($record->path);   // ← FIX TERBESAR
                         $encodedPath = str_replace(' ', '%20', $record->path);
-                        $url = "http://127.0.0.1:9090/delete?path={$encodedPath}";
+                        $url = "http://192.168.200.211:9090/delete?path={$encodedPath}";
 
                         Log::info("Deleting MinIO file", [
                             'id' => $record->id,
@@ -107,8 +107,15 @@ class BackupResource extends Resource
                         }
 
                         $record->delete();
-                    })
-            ]);
+                        
+                    }),
+                    Tables\Actions\Action::make('details')
+                    ->label('Details')
+                    ->icon('heroicon-o-information-circle')
+                    ->url(fn ($record) => route('backup.details', $record->id))
+                    ->openUrlInNewTab(),
+                ]);
+
     }
 
     public static function getRelations(): array

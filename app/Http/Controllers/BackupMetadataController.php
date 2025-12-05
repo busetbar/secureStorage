@@ -55,6 +55,7 @@ class BackupMetadataController extends Controller
             'stored_filename' => basename($request->minio_path),
             'final_size'      => $request->final_size,
             'status'          => 'completed',
+            'duration_encrypt_ms'  => $request->duration_ms,
         ]);
 
         Log::info('BACKUP UPDATED', $backup->toArray());
@@ -90,7 +91,7 @@ class BackupMetadataController extends Controller
         }
 
         // --- 1. Hapus file di GO WORKER ---
-        $goUrl = "http://127.0.0.1:9090/delete?path={$backup->path}";
+        $goUrl = "http://192.168.200.211:9090/delete?path={$backup->path}";
 
         $response = Http::timeout(10)->delete($goUrl);
 
@@ -107,6 +108,30 @@ class BackupMetadataController extends Controller
         return response()->json([
             'deleted' => true,
             'minio' => true
+        ]);
+    }
+
+    public function checkDecryptTime($id)
+    {
+        $backup = Backup::find($id);
+
+        if (! $backup || ! $backup->path) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+
+        $url = "http://192.168.200.211:9090/integrity?path={$backup->path}";
+
+        $response = Http::timeout(60)->get($url);
+
+        if (! $response->ok()) {
+            return response()->json(['error' => 'Failed integrity check'], 500);
+        }
+
+        $backup->duration_decrypt_ms = $response->json()['time_ms'];
+        $backup->save();
+
+        return response()->json([
+            'decrypt_duration_ms' => $backup->duration_decrypt_ms
         ]);
     }
 }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Pages\BackupDetails;
 use App\Http\Controllers\BackupMetadataController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,3 +29,6 @@ Route::post('/backup/metadata', [BackupMetadataController::class, 'storeMetadata
 
 Route::delete('/backup/{id}', [BackupMetadataController::class, 'delete'])
     ->name('backup.delete')->middleware('auth');
+
+    Route::get('/admin/backups/{id}/details', BackupDetails::class)
+    ->name('backup.details');
