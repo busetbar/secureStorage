@@ -15,10 +15,11 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Route::get('/', function () {
+//     return view('welcome');
+// });
 
+Route::redirect('/', '/admin/login');
 // Route::post('/backup/metadata', [BackupMetadataController::class, 'store'])
 //     ->name('backup.metadata.store')
 //     ->middleware('auth');
