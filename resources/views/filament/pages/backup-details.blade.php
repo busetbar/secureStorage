@@ -1,4 +1,6 @@
 <x-filament-panels::page>
+
+    {{-- Heading --}}
     <div class="mb-6">
         <h1 class="text-3xl font-semibold tracking-tight">Backup Details</h1>
         <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
@@ -6,110 +8,176 @@
         </p>
     </div>
 
+    {{-- SECTION: FILE INFORMATION --}}
     <x-filament::section>
-        <x-slot name="heading">
-            File Information
-        </x-slot>
+        <x-slot name="heading">File Information</x-slot>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
 
-            {{-- Left Column --}}
-            <div class="space-y-3">
-                <div>
-                    <span class="font-medium text-gray-600">Name:</span>
-                    <div class="text-gray-900 dark:text-gray-200">{{ $backup->name }}</div>
-                </div>
+            {{-- LEFT --}}
+            <div class="space-y-4">
 
-                <div>
-                    <span class="font-medium text-gray-600">Original Filename:</span>
-                    <div class="text-gray-900 dark:text-gray-200">{{ $backup->original_filename }}</div>
-                </div>
+                <x-filament::grid class="gap-1">
+                    <span class="text-gray-500 dark:text-gray-400">Name</span>
+                    <span class="font-medium text-gray-900 dark:text-gray-200">
+                        {{ $backup->name }}
+                    </span>
+                </x-filament::grid>
 
-                <div>
-                    <span class="font-medium text-gray-600">Encrypted Filename:</span>
-                    <div class="text-gray-900 dark:text-gray-200">{{ $backup->stored_filename }}</div>
-                </div>
+                <x-filament::grid class="gap-1">
+                    <span class="text-gray-500 dark:text-gray-400">Original Filename</span>
+                    <span class="font-medium text-gray-900 dark:text-gray-200">
+                        {{ $backup->original_filename }}
+                    </span>
+                </x-filament::grid>
 
-                <div>
-                    <span class="font-medium text-gray-600">Status:</span>
-                    <div>
-                        <x-filament::badge 
-                            color="{{ $backup->status === 'completed' ? 'success' : ($backup->status === 'uploading' ? 'warning' : 'danger') }}"
-                        >
-                            {{ ucfirst($backup->status) }}
-                        </x-filament::badge>
-                    </div>
-                </div>
+                <x-filament::grid class="gap-1">
+                    <span class="text-gray-500 dark:text-gray-400">Encrypted Filename</span>
+                    <span class="font-medium text-gray-900 dark:text-gray-200">
+                        {{ $backup->stored_filename }}
+                    </span>
+                </x-filament::grid>
+
+                <x-filament::grid class="gap-1">
+                    <span class="text-gray-500 dark:text-gray-400">Status</span>
+                    <x-filament::badge 
+                        color="{{ $backup->status === 'completed' ? 'success' : ($backup->status === 'uploading' ? 'warning' : 'danger') }}"
+                        class="w-fit"
+                    >
+                        {{ ucfirst($backup->status) }}
+                    </x-filament::badge>
+                </x-filament::grid>
+
             </div>
 
-            {{-- Right Column --}}
-            <div class="space-y-3">
-                <div>
-                    <span class="font-medium text-gray-600">Original Size:</span>
-                    <div class="text-gray-900 dark:text-gray-200">
+            {{-- RIGHT --}}
+            <div class="space-y-4">
+
+                <x-filament::grid class="gap-1">
+                    <span class="text-gray-500 dark:text-gray-400">Original Size</span>
+                    <span class="font-medium text-gray-900 dark:text-gray-200">
                         {{ number_format($backup->original_size / 1024 / 1024, 2) }} MB
-                    </div>
-                </div>
+                    </span>
+                </x-filament::grid>
 
-                <div>
-                    <span class="font-medium text-gray-600">Encrypted Size:</span>
-                    <div class="text-gray-900 dark:text-gray-200">
+                <x-filament::grid class="gap-1">
+                    <span class="text-gray-500 dark:text-gray-400">Encrypted Size</span>
+                    <span class="font-medium text-gray-900 dark:text-gray-200">
                         {{ number_format($backup->final_size / 1024 / 1024, 2) }} MB
-                    </div>
-                </div>
+                    </span>
+                </x-filament::grid>
 
-<div>
-    <span class="font-medium text-gray-600 dark:text-gray-400">Compression:</span>
-
-    @php
-        $percentage = ($backup->final_size && $backup->original_size)
-            ? ($backup->final_size / $backup->original_size) * 100
-            : null;
-    @endphp
-
-    {{-- Nilai Persentase --}}
-    <div class="text-gray-900 dark:text-gray-200 font-semibold">
-        {{ $percentage ? number_format($percentage, 2) . '%' : '-' }}
-    </div>
-
-    {{-- Penjelasan --}}
-    @if ($percentage)
-        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-
-            @if ($percentage < 100)
-                File berhasil diperkecil menjadi <b>{{ 100 - number_format($percentage, 2) }}%</b>
-                dari ukuran asli.
-            @elseif ($percentage == 100)
-                Ukuran file tetap sama setelah kompresi.
-            @else
-                Ukuran file meningkat sebesar
-                <b>{{ number_format($percentage - 100, 2) }}%</b>
-                dibanding ukuran asli — biasanya terjadi pada file yang sudah terkompresi
-                (ZIP, JPEG, MP4, PDF).
-            @endif
-
-        </div>
-    @endif
-</div>
+                {{-- COMPRESSION --}}
+                @php
+                    $percentage = ($backup->final_size && $backup->original_size)
+                        ? ($backup->final_size / $backup->original_size) * 100
+                        : null;
+                @endphp
 
                 <div>
-                    <span class="font-medium text-gray-600">Encrypt Duration:</span>
-                    <div class="text-gray-900 dark:text-gray-200">
-                        {{ $backup->duration_encrypt_ms ? $backup->duration_encrypt_ms.' ms' : 'Not available' }}
+                    <span class="text-gray-500 dark:text-gray-400">Compression Ratio</span>
+
+                    <div class="font-semibold text-gray-900 dark:text-gray-200">
+                        {{ $percentage ? number_format($percentage, 2) . '%' : '-' }}
                     </div>
+
+                    @if ($percentage)
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+
+                            @if ($percentage < 100)
+                                <span class="text-success-600 font-medium">
+                                    {{ 100 - number_format($percentage, 2) }}% smaller
+                                </span>
+                                than original.
+                            @elseif ($percentage == 100)
+                                No size reduction. File remained the same.
+                            @else
+                                <span class="text-warning-600 font-medium">
+                                    {{ number_format($percentage - 100, 2) }}% larger
+                                </span>
+                                — typical for already-compressed file types (JPEG, MP4, ZIP).
+                            @endif
+
+                        </div>
+                    @endif
                 </div>
 
-                <div>
-                    <span class="font-medium text-gray-600">Decrypt Duration:</span>
-                    <div class="text-gray-900 dark:text-gray-200">
-                        {{ $backup->duration_decrypt_ms ? $backup->duration_decrypt_ms.' ms' : 'Not measured yet' }}
-                    </div>
-                </div>
+                {{-- ENCRYPT DURATION --}}
+                <x-filament::grid class="gap-1">
+                    <span class="text-gray-500 dark:text-gray-400">Encrypt Duration</span>
+                    <span class="font-medium text-gray-900 dark:text-gray-200">
+                        {{ $backup->duration_encrypt_ms ? $backup->duration_encrypt_ms . ' ms' : '-' }}
+                    </span>
+                </x-filament::grid>
+
+                {{-- DECRYPT DURATION --}}
+                <x-filament::grid class="gap-1">
+                    <span class="text-gray-500 dark:text-gray-400">Decrypt Duration</span>
+                    <span class="font-medium text-gray-900 dark:text-gray-200">
+                        {{ $backup->duration_decrypt_ms ? $backup->duration_decrypt_ms . ' ms' : '-' }}
+                    </span>
+                </x-filament::grid>
+
             </div>
 
         </div>
     </x-filament::section>
 
+    <x-filament::section>
+    <x-slot name="heading">Integrity Information</x-slot>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
+
+        {{-- ORIGINAL HASH --}}
+        <div class="space-y-4">
+            <x-filament::grid class="gap-1">
+                <span class="text-gray-500 dark:text-gray-400">Original SHA Integrity File</span>
+                <span class="font-mono text-xs break-all text-gray-900 dark:text-gray-200">
+                    {{ $backup->original_sha256 }}
+                </span>
+            </x-filament::grid>
+
+            <x-filament::grid class="gap-1">
+                <span class="text-gray-500 dark:text-gray-400">After Decrypt SHA Integrity File</span>
+                <span class="font-mono text-xs break-all text-gray-900 dark:text-gray-200">
+                    {{ $backup->after_sha256 ?? '-' }}
+                </span>
+            </x-filament::grid>
+        </div>
+
+        {{-- INTEGRITY STATUS --}}
+        <div class="space-y-4">
+
+            <x-filament::grid class="gap-1">
+                <span class="text-gray-500 dark:text-gray-400">Integrity Status</span>
+
+                @if ($backup->after_sha256)
+                    <x-filament::badge 
+                        color="{{ $backup->integrity_passed ? 'success' : 'danger' }}"
+                        class="w-fit"
+                    >
+                        {{ $backup->integrity_passed ? 'PASSED' : 'FAILED' }}
+                    </x-filament::badge>
+                @else
+                    <x-filament::badge color="gray" class="w-fit">
+                        Not Checked
+                    </x-filament::badge>
+                @endif
+            </x-filament::grid>
+
+            {{-- DECRYPT TIME --}}
+            <x-filament::grid class="gap-1">
+                <span class="text-gray-500 dark:text-gray-400">Decryption / Integrity Duration</span>
+                <span class="font-medium text-gray-900 dark:text-gray-200">
+                    {{ $backup->duration_decrypt_ms ? $backup->duration_decrypt_ms.' ms' : '-' }}
+                </span>
+            </x-filament::grid>
+        </div>
+
+    </div>
+</x-filament::section>
+
+    {{-- ACTION --}}
     <div class="mt-6 flex justify-end">
         <x-filament::button
             wire:click="measureDecryptTime"

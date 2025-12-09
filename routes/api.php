@@ -20,7 +20,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::post('/backup/callback', [BackupCallbackController::class, 'handle']);
+// Route::post('/backup/callback', [BackupCallbackController::class, 'handle']);
+Route::post('/backup/callback', [BackupMetadataController::class, 'callback'])
+    ->middleware([]);
 Route::get('/backup/list/json', [BackupMetadataController::class, 'listJson']);
 Route::get('/backup/decrypt-time/{id}', [BackupMetadataController::class, 'checkDecryptTime']);
 

@@ -20,13 +20,11 @@ class BackupMetadataController extends Controller
             'name'               => $request->name,
             'original_filename'  => $request->original_filename,
             'original_size'      => $request->original_size,
-            
-            // default values
+            'original_sha256'    => $request->original_sha256, // wajib
             'path'               => null,
             'stored_filename'    => null,
             'final_size'         => null,
             'status'             => 'uploading',
-
             'user_id'            => Auth()->id(),
         ]);
 
@@ -37,35 +35,81 @@ class BackupMetadataController extends Controller
 
     /**
      * STEP 2:
-     * Go Worker mengirim callback setelah upload selesai
+     * Callback dari Go Worker setelah upload selesai
      */
     public function callback(Request $request)
     {
-        Log::info('CALLBACK RAW', $request->all());
+        Log::info("CALLBACK RAW", $request->all());
 
-        $backup = Backup::find($request->backup_id);
+        // ============================
+        // EVENT: UPLOAD
+        // ============================
+        if ($request->event === "upload") {
 
-        if (! $backup) {
-            Log::warning("BACKUP NOT FOUND ID=" . $request->backup_id);
-            return response()->json(['error' => 'Not found'], 404);
+            $backup = Backup::find($request->backup_id);
+
+            if (!$backup) {
+                Log::warning("UPLOAD CALLBACK FAILED — BACKUP NOT FOUND ID={$request->backup_id}");
+                return response()->json(['error' => 'not found'], 404);
+            }
+
+            $backup->update([
+                'path'                => $request->minio_path,
+                'stored_filename'     => basename($request->minio_path),
+                'final_size'          => $request->final_size,
+                'status'              => 'completed',
+                'duration_encrypt_ms' => $request->duration_ms,
+            ]);
+
+            Log::info("UPLOAD CALLBACK UPDATED", $backup->toArray());
+
+            return response()->json(['upload_callback' => true]);
         }
 
-        $backup->update([
-            'path'            => $request->minio_path,
-            'stored_filename' => basename($request->minio_path),
-            'final_size'      => $request->final_size,
-            'status'          => 'completed',
-            'duration_encrypt_ms'  => $request->duration_ms,
-        ]);
+        // ============================
+        // EVENT: INTEGRITY
+        // ============================
+        if ($request->event === "integrity") {
 
-        Log::info('BACKUP UPDATED', $backup->toArray());
+            // prefer by backup_id if provided
+            $backup = null;
+            if ($request->has('backup_id') && $request->backup_id) {
+                $backup = Backup::find($request->backup_id);
+                if (! $backup) {
+                    Log::warning("INTEGRITY CALLBACK FAILED — BACKUP NOT FOUND ID={$request->backup_id}");
+                    // fallback to path lookup below
+                }   
+            }
 
-        return response()->json(['success' => true]);
+            // fallback: find by path
+            if (! $backup) {
+                if (! $request->path) {
+                    Log::error("INTEGRITY CALLBACK ERROR — Missing path and no valid backup_id");
+                    return response()->json(['error' => 'path or backup_id required'], 400);
+                }
+
+                $backup = Backup::where('path', $request->path)->first();
+                if (! $backup) {
+                    Log::warning("INTEGRITY CALLBACK FAILED — BACKUP NOT FOUND FOR PATH {$request->path}");
+                    return response()->json(['error' => 'not found'], 404);
+                }
+            }
+
+            // update
+            $backup->after_sha256 = $request->hash_after;
+            $backup->duration_decrypt_ms = $request->time_ms;
+            $backup->integrity_passed = ($backup->original_sha256 === $request->hash_after);
+            $backup->save();
+
+            Log::info("INTEGRITY CALLBACK UPDATED", $backup->toArray());
+
+            return response()->json(['integrity_callback' => true]);
+        }
     }
 
     /**
      * STEP 3:
-     * List backup untuk frontend
+     * List backup
      */
     public function listJson()
     {
@@ -74,7 +118,7 @@ class BackupMetadataController extends Controller
 
     /**
      * STEP 4:
-     * DELETE BACKUP (hapus file di MinIO + hapus di database)
+     * DELETE
      */
     public function delete($id)
     {
@@ -84,15 +128,12 @@ class BackupMetadataController extends Controller
             return response()->json(['error' => 'Not found'], 404);
         }
 
-        // Jika tidak ada path MinIO, langsung hapus metadata
         if (! $backup->path) {
             $backup->delete();
             return response()->json(['deleted' => true, 'minio' => false]);
         }
 
-        // --- 1. Hapus file di GO WORKER ---
         $goUrl = "http://192.168.200.211:9090/delete?path={$backup->path}";
-
         $response = Http::timeout(10)->delete($goUrl);
 
         if (! $response->ok()) {
@@ -102,36 +143,45 @@ class BackupMetadataController extends Controller
             ], 500);
         }
 
-        // --- 2. Hapus metadata di database ---
         $backup->delete();
 
         return response()->json([
             'deleted' => true,
-            'minio' => true
+            'minio' => true,
         ]);
     }
 
+    /**
+     * STEP 5:
+     * Integrity Check — decrypt + decompress + SHA-256
+     */
     public function checkDecryptTime($id)
     {
         $backup = Backup::find($id);
 
-        if (! $backup || ! $backup->path) {
+        if (!$backup || !$backup->path) {
             return response()->json(['error' => 'Not found'], 404);
         }
 
-        $url = "http://192.168.200.211:9090/integrity?path={$backup->path}";
+        $url = "http://192.168.200.211:9090/integrity?path={$backup->path}&backup_id={$backup->id}";
+        $response = Http::timeout(120)->get($url);
 
-        $response = Http::timeout(60)->get($url);
-
-        if (! $response->ok()) {
-            return response()->json(['error' => 'Failed integrity check'], 500);
+        if (!$response->ok()) {
+            return response()->json(['error' => 'Integrity check failed'], 500);
         }
 
-        $backup->duration_decrypt_ms = $response->json()['time_ms'];
+        $afterHash = $response->json()['hash_after'];
+        $timeMs    = $response->json()['time_ms'];
+
+        $backup->after_sha256 = $afterHash;
+        $backup->duration_decrypt_ms = $timeMs;
+        $backup->integrity_passed = ($backup->original_sha256 === $afterHash);
         $backup->save();
 
         return response()->json([
-            'decrypt_duration_ms' => $backup->duration_decrypt_ms
+            'hash_after'        => $afterHash,
+            'integrity_passed'  => $backup->integrity_passed,
+            'time_ms'           => $timeMs,
         ]);
     }
 }

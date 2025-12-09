@@ -20,5 +20,8 @@ class Backup extends Model
         'user_id',
         'duration_encrypt_ms',
         'duration_decrypt_ms', // ← WAJIB ADA
+        'original_sha256',
+        'after_sha256',
+        'integrity_passed'
     ];
 }
