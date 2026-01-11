@@ -1,4 +1,5 @@
 <x-filament-panels::page>
+    <div wire:poll.2s>
 
     {{-- Heading --}}
     <div class="mb-6">
@@ -102,11 +103,22 @@
                     @endif
                 </div>
 
+@php
+    $msToSec = fn ($ms) =>
+        $ms !== null
+            ? number_format($ms / 1000, 2) . ' s'
+            : '-';
+
+    $msToSecDetail = fn ($ms) =>
+        $ms !== null
+            ? number_format($ms / 1000, 2) . ' s (' . number_format($ms) . ' ms)'
+            : '-';
+@endphp
                 {{-- ENCRYPT DURATION --}}
                 <x-filament::grid class="gap-1">
                     <span class="text-gray-500 dark:text-gray-400">Encrypt Duration</span>
                     <span class="font-medium text-gray-900 dark:text-gray-200">
-                        {{ $backup->duration_encrypt_ms ? $backup->duration_encrypt_ms . ' ms' : '-' }}
+                        {{ $msToSecDetail($backup->duration_encrypt_ms)}}
                     </span>
                 </x-filament::grid>
 
@@ -114,7 +126,7 @@
                 <x-filament::grid class="gap-1">
                     <span class="text-gray-500 dark:text-gray-400">Decrypt Duration</span>
                     <span class="font-medium text-gray-900 dark:text-gray-200">
-                        {{ $backup->duration_decrypt_ms ? $backup->duration_decrypt_ms . ' ms' : '-' }}
+                        {{ $msToSecDetail($backup->duration_decrypt_ms)}}    
                     </span>
                 </x-filament::grid>
 
@@ -169,7 +181,7 @@
             <x-filament::grid class="gap-1">
                 <span class="text-gray-500 dark:text-gray-400">Decryption / Integrity Duration</span>
                 <span class="font-medium text-gray-900 dark:text-gray-200">
-                    {{ $backup->duration_decrypt_ms ? $backup->duration_decrypt_ms.' ms' : '-' }}
+                    {{ $msToSecDetail($backup->duration_decrypt_ms)}}
                 </span>
             </x-filament::grid>
         </div>
@@ -187,5 +199,5 @@
             Measure Decrypt Time
         </x-filament::button>
     </div>
-
+    </div>
 </x-filament-panels::page>

@@ -7,7 +7,11 @@ use Filament\Widgets\ChartWidget;
 
 class BackupSizeChart extends ChartWidget
 {
-    protected static ?string $heading = 'Chart Size';
+    //protected static ?string $heading = 'Chart Size';
+    protected int | string | array $columnSpan = "full";
+    protected static ?string $maxHeight = '500px';
+
+protected static ?int $sort = 2;
 
     protected function getData(): array
     {

@@ -158,30 +158,37 @@ class BackupMetadataController extends Controller
     public function checkDecryptTime($id)
     {
         $backup = Backup::find($id);
+        Log::info($backup);
 
         if (!$backup || !$backup->path) {
             return response()->json(['error' => 'Not found'], 404);
         }
 
-        $url = "http://192.168.200.211:9090/integrity?path={$backup->path}&backup_id={$backup->id}";
-        $response = Http::timeout(120)->get($url);
+        $url = "http://192.168.200.211:9090/integrity"
+            . "?path={$backup->path}&backup_id={$backup->id}";
+
+        try {
+            $response = Http::withOptions([
+                'connect_timeout' => 30,
+                'timeout' => 300,
+            ])->get($url);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error'   => 'Request failed',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
 
         if (!$response->ok()) {
             return response()->json(['error' => 'Integrity check failed'], 500);
         }
 
-        $afterHash = $response->json()['hash_after'];
-        $timeMs    = $response->json()['time_ms'];
-
-        $backup->after_sha256 = $afterHash;
-        $backup->duration_decrypt_ms = $timeMs;
-        $backup->integrity_passed = ($backup->original_sha256 === $afterHash);
-        $backup->save();
+        // ⛔ JANGAN UPDATE DB DI SINI
+        // callback yang akan update
 
         return response()->json([
-            'hash_after'        => $afterHash,
-            'integrity_passed'  => $backup->integrity_passed,
-            'time_ms'           => $timeMs,
+            'status' => 'processing',
+            'message' => 'Integrity check started, waiting callback',
         ]);
     }
 }

@@ -4,12 +4,15 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\BackupResource\Pages;
 use App\Models\Backup;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Support\Facades\Http;   // ← WAJIB TAMBAHKAN INI
 use Illuminate\Support\Facades\Log;
 
@@ -28,7 +31,14 @@ class BackupResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->poll('5s')
+            ->filters([
+            // ...
+            SelectFilter::make('status')
+                ->options([
+                    'completed' => 'Completed',
+                    'uploading' => 'Uploading'
+                ]),
+            ])
             ->columns([
 
                 TextColumn::make('name')->sortable()->searchable(),
@@ -43,7 +53,6 @@ class BackupResource extends Resource
                     ->formatStateUsing(fn ($state) =>
                         number_format($state / 1024 / 1024, 2) . ' MB'
                     ),
-
                 BadgeColumn::make('status')
                     ->colors([
                         'warning' => 'uploading',
@@ -54,6 +63,7 @@ class BackupResource extends Resource
 
                 TextColumn::make('created_at')
                     ->dateTime('d M Y H:i')
+                    ->sortable()
                     ->label('Uploaded'),
             ])
             ->actions([

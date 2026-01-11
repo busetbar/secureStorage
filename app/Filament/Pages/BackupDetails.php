@@ -23,7 +23,7 @@ class BackupDetails extends Page
     }
     public function measureDecryptTime()
     {
-        $url = "http://192.168.200.211:9090/integrity?path={$this->backup->path}";
+        $url = "http://192.168.200.211:9090/integrity". "?path={$this->backup->path}". "&backup_id={$this->backup->id}";
 
         $response = Http::timeout(60)->get($url);
 
