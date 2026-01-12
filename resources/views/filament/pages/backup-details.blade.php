@@ -3,7 +3,7 @@
 
     {{-- Heading --}}
     <div class="mb-6">
-        <h1 class="text-3xl font-semibold tracking-tight">Backup Details</h1>
+        <h1 class="text-3xl font-semibold tracking-tight">File Information</h1>
         <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
             Detailed information about your encrypted backup file.
         </p>
@@ -103,17 +103,17 @@
                     @endif
                 </div>
 
-@php
-    $msToSec = fn ($ms) =>
-        $ms !== null
-            ? number_format($ms / 1000, 2) . ' s'
-            : '-';
+                @php
+                    $msToSec = fn ($ms) =>
+                        $ms !== null
+                            ? number_format($ms / 1000, 2) . ' s'
+                            : '-';
 
-    $msToSecDetail = fn ($ms) =>
-        $ms !== null
-            ? number_format($ms / 1000, 2) . ' s (' . number_format($ms) . ' ms)'
-            : '-';
-@endphp
+                    $msToSecDetail = fn ($ms) =>
+                        $ms !== null
+                            ? number_format($ms / 1000, 2) . ' s (' . number_format($ms) . ' ms)'
+                            : '-';
+                @endphp
                 {{-- ENCRYPT DURATION --}}
                 <x-filament::grid class="gap-1">
                     <span class="text-gray-500 dark:text-gray-400">Encrypt Duration</span>

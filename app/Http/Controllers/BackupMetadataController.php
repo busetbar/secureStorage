@@ -105,6 +105,47 @@ class BackupMetadataController extends Controller
 
             return response()->json(['integrity_callback' => true]);
         }
+        // ============================
+        // EVENT: INTEGRITY FAILED
+        // ============================
+        if ($request->event === "integrity_failed") {
+
+            $backup = Backup::find($request->backup_id);
+
+            if (! $backup) {
+                Log::warning("UPLOAD FAILED CALLBACK — BACKUP NOT FOUND ID={$request->backup_id}");
+                return response()->json(['error' => 'not found'], 404);
+            }
+
+            $backup->update([
+                'status' => 'failed',
+            ]);
+
+            Log::error("UPLOAD FAILED CALLBACK UPDATED", $backup->toArray());
+
+            return response()->json(['integrity_failed_callback' => true]);
+        }
+
+        // ============================
+        // EVENT: UPLOAD FAILED
+        // ============================
+        if ($request->event === "upload_failed") {
+
+            $backup = Backup::find($request->backup_id);
+
+            if (! $backup) {
+                Log::warning("UPLOAD FAILED CALLBACK — BACKUP NOT FOUND ID={$request->backup_id}");
+                return response()->json(['error' => 'not found'], 404);
+            }
+
+            $backup->update([
+                'status' => 'failed',
+            ]);
+
+            Log::error("UPLOAD FAILED CALLBACK UPDATED", $backup->toArray());
+
+            return response()->json(['upload_failed_callback' => true]);
+        }
     }
 
     /**

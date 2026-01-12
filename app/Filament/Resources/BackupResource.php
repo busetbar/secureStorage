@@ -36,7 +36,8 @@ class BackupResource extends Resource
             SelectFilter::make('status')
                 ->options([
                     'completed' => 'Completed',
-                    'uploading' => 'Uploading'
+                    'uploading' => 'Uploading',
+                    'failed' => 'Failed'
                 ]),
             ])
             ->columns([

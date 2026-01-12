@@ -25,7 +25,7 @@ class BackupDetails extends Page
     {
         $url = "http://192.168.200.211:9090/integrity". "?path={$this->backup->path}". "&backup_id={$this->backup->id}";
 
-        $response = Http::timeout(60)->get($url);
+        $response = Http::timeout(300)->get($url);
 
         if (! $response->ok()) {
             $this->dispatch('notify', type: 'danger', message: 'Failed to calculate decrypt time.');
