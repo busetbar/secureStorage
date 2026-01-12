@@ -22,6 +22,10 @@ class Backup extends Model
         'duration_decrypt_ms', // ← WAJIB ADA
         'original_sha256',
         'after_sha256',
-        'integrity_passed'
+        'integrity_passed',
+        'duration_compress_ms',
+        'duration_decompress_ms',
+        'duration_total_ms',
+        'duration_total_decompress'
     ];
 }

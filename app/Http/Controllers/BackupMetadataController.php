@@ -59,6 +59,8 @@ class BackupMetadataController extends Controller
                 'final_size'          => $request->final_size,
                 'status'              => 'completed',
                 'duration_encrypt_ms' => $request->duration_ms,
+                'duration_compress_ms'  => $request->duration_compress_ms,
+                'duration_total_ms'     => $request->duration_total_ms,
             ]);
 
             Log::info("UPLOAD CALLBACK UPDATED", $backup->toArray());
@@ -98,6 +100,9 @@ class BackupMetadataController extends Controller
             // update
             $backup->after_sha256 = $request->hash_after;
             $backup->duration_decrypt_ms = $request->time_ms;
+            $backup->duration_decompress_ms = $request->duration_decompress_ms;
+            $backup->duration_total_decompress = $request->duration_total_ms;
+
             $backup->integrity_passed = ($backup->original_sha256 === $request->hash_after);
             $backup->save();
 
