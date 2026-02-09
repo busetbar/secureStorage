@@ -113,6 +113,11 @@ function computeSHA256(file, onProgress) {
     const metadataUrl  = "{{ route('backup.metadata.store') }}";
     const csrf         = "{{ csrf_token() }}";
 
+    // ✅ redirect URL pake laravel route (biar gak hardcode)
+    const redirectUrlUpload = "{{ url('admin/backups') }}"; 
+    // kalau ada route named lebih bagus:
+
+
     const btn          = document.getElementById("upload-btn");
     const progressBox  = document.getElementById("progress-wrapper");
     const progressBar  = document.getElementById("progress-bar");
@@ -121,6 +126,34 @@ function computeSHA256(file, onProgress) {
     const progressTitle= document.getElementById("progress-title");
     const bgSpinner    = document.getElementById("background-processing");
 
+    function resetUI() {
+        progressBar.classList.remove("animate-pulse");
+        progressBar.style.width = "0%";
+        progressDet.textContent = "";
+        progressStat.textContent = "";
+    }
+
+    /**
+     * ✅ UNIVERSAL ERROR HANDLER
+     * semua error masuk sini dan auto redirect
+     */
+    function redirectError(message, detail = "") {
+        console.error("[UPLOAD ERROR]", message, detail);
+
+        bgSpinner.classList.add("hidden");
+        btn.disabled = false;
+        btn.textContent = "🚀 Start Upload";
+
+        progressTitle.textContent = "Upload Failed ❌";
+        progressStat.textContent  = message || "Upload gagal.";
+        progressDet.textContent   = detail || "Redirecting...";
+        progressBar.classList.remove("animate-pulse");
+
+        setTimeout(() => {
+            window.location.href = redirectUrlUpload;
+        }, 1500);
+    }
+
     btn.addEventListener("click", async () => {
 
         const file = document.getElementById("file-input").files[0];
@@ -128,72 +161,138 @@ function computeSHA256(file, onProgress) {
 
         if (!file) return alert("Please choose a file first.");
 
-        // 🔄 Spinner ON dari awal
-        bgSpinner.classList.remove("hidden");
+        // UI reset
+        resetUI();
 
+        bgSpinner.classList.remove("hidden");
         btn.disabled = true;
         btn.textContent = "Processing...";
         progressBox.classList.remove("hidden");
 
-        /* STEP 1: HASHING */
-        progressTitle.textContent = "Hashing file…";
-        progressStat.textContent  = "Checking integrity…";
+        try {
+            /**
+             * STEP 1: HASH
+             */
+            progressTitle.textContent = "Hashing file…";
+            progressStat.textContent  = "Checking integrity…";
 
-        const sha = await computeSHA256(file, (loaded, total) => {
-            const pct = loaded / total * 100;
-            progressBar.style.width = pct + "%";
-            progressStat.textContent = `Hashing ${pct.toFixed(1)}%`;
-        });
+            const sha = await computeSHA256(file, (loaded, total) => {
+                const pct = loaded / total * 100;
+                progressBar.style.width = pct + "%";
+                progressStat.textContent = `Hashing ${pct.toFixed(1)}%`;
+            });
 
-        /* STEP 2: METADATA */
-        progressTitle.textContent = "Sending metadata…";
+            /**
+             * STEP 2: SEND METADATA
+             */
+            progressTitle.textContent = "Sending metadata…";
+            progressBar.style.width = "0%";
 
-        const meta = await fetch(metadataUrl, {
-            method: "POST",
-            headers: {
-                "X-CSRF-TOKEN": csrf,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                name: backupName,
-                original_filename: file.name,
-                original_size: file.size,
-                original_sha256: sha
-            })
-        }).then(r => r.json());
+            const metaRes = await fetch(metadataUrl, {
+                method: "POST",
+                headers: {
+                    "X-CSRF-TOKEN": csrf,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name: backupName,
+                    original_filename: file.name,
+                    original_size: file.size,
+                    original_sha256: sha
+                })
+            });
 
-        /* STEP 3: UPLOAD */
-        progressTitle.textContent = "Uploading file…";
-        progressBar.style.width = "0%";
+            if (!metaRes.ok) {
+                return redirectError("Gagal kirim metadata.", `HTTP ${metaRes.status}`);
+            }
 
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", `${uploadUrlGo}?filename=${encodeURIComponent(file.name)}&backup_id=${meta.backup_id}`);
+            const meta = await metaRes.json();
+            if (!meta?.backup_id) {
+                return redirectError("Metadata response invalid.", JSON.stringify(meta));
+            }
 
-        xhr.upload.onprogress = e => {
-            const pct = e.loaded / e.total * 100;
-            progressBar.style.width = pct + "%";
-            progressStat.textContent = `Uploading ${pct.toFixed(1)}%`;
-            progressStat.textContent =
-                `Uploading file… ${pct.toFixed(1)}%`;
-        };
+            /**
+             * STEP 3: UPLOAD
+             */
+            progressTitle.textContent = "Uploading file…";
+            progressBar.style.width = "0%";
 
-        xhr.onload = () => {
-            progressTitle.textContent = "Upload completed";
-            progressStat.textContent  = "Processing in background…";
-            progressBar.classList.add("animate-pulse");
-            pollStatus(meta.backup_id);
-        };
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", `${uploadUrlGo}?filename=${encodeURIComponent(file.name)}&backup_id=${meta.backup_id}`);
 
-        const fd = new FormData();
-        fd.append("file", file);
-        xhr.send(fd);
+            xhr.upload.onprogress = e => {
+                if (!e.total) return;
+
+                const pct = e.loaded / e.total * 100;
+                progressBar.style.width = pct + "%";
+                progressStat.textContent = `Uploading file… ${pct.toFixed(1)}%`;
+            };
+
+            /**
+             * ✅ NETWORK ERROR -> redirect
+             */
+            xhr.onerror = () => {
+                redirectError(
+                    "Upload gagal. File terlalu besar atau koneksi bermasalah.",
+                    "Redirecting..."
+                );
+            };
+
+            /**
+             * ✅ DONE REQUEST (SUCCESS OR FAIL)
+             */
+            xhr.onload = () => {
+
+                // FAIL: status bukan 2xx
+                if (xhr.status < 200 || xhr.status >= 300) {
+                    let msg = `Upload failed (HTTP ${xhr.status})`;
+
+                    // khusus 413
+                    if (xhr.status === 413) {
+                        msg = "File terlalu besar (melebihi batas upload).";
+                    }
+
+                    // coba parse json error worker
+                    try {
+                        const parsed = JSON.parse(xhr.responseText);
+                        if (parsed?.error_message) msg = parsed.error_message;
+                        if (parsed?.message) msg = parsed.message;
+                        if (parsed?.error) msg = parsed.error;
+                    } catch (e) {}
+
+                    return redirectError(msg, "Redirecting...");
+                }
+
+                // SUCCESS upload (worker lanjut compress & encrypt)
+                progressTitle.textContent = "Upload completed";
+                progressStat.textContent  = "Processing in background…";
+                progressBar.classList.add("animate-pulse");
+
+                pollStatus(meta.backup_id);
+            };
+
+            const fd = new FormData();
+            fd.append("file", file);
+            xhr.send(fd);
+
+        } catch (err) {
+            return redirectError(
+                "Terjadi error saat proses hashing / metadata.",
+                err?.message ?? "Unknown error"
+            );
+        }
     });
 
+    /**
+     * ✅ Poll status sampai completed / failed
+     */
     function pollStatus(id) {
         const timer = setInterval(() => {
             fetch(`/api/backup/status/${id}`)
                 .then(r => r.json())
                 .then(res => {
+
+                    // ✅ SUCCESS
                     if (res.status === "completed") {
                         clearInterval(timer);
 
@@ -203,9 +302,27 @@ function computeSHA256(file, onProgress) {
                         progressTitle.textContent = "Process Completed ✔";
 
                         setTimeout(() => {
-                            window.location.href = "/admin/backups";
+                            window.location.href = "backups";
                         }, 800);
+
+                        return;
                     }
+
+                    // ❌ FAILED -> redirect
+                    if (res.status === "failed") {
+                        clearInterval(timer);
+                        return redirectError(
+                            "Upload gagal (file terlalu besar / worker error).",
+                            "Redirecting..."
+                        );
+                    }
+                })
+                .catch(() => {
+                    clearInterval(timer);
+                    return redirectError(
+                        "Gagal cek status upload (API error).",
+                        "Redirecting..."
+                    );
                 });
         }, 1200);
     }
